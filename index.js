@@ -21,6 +21,7 @@ const PASSWORD_DISTRIBUTION = new Map([[PasswordType.Top, 0.09],
                                        [PasswordType.Common, 0.9],
                                        [PasswordType.Random, 0.01]
                                       ]);
+//Generate array of password type distribution
 const PASSWORD_DISTRIBUTION_ARRAY = shuffle(Array.from(PASSWORD_DISTRIBUTION).map(([type, percent]) => Array(Math.floor(percent * 1000)).fill(type)).flat(1));
 const ALPHABET_LOWERCASE = [...Array(26).keys()].map(el => String.fromCodePoint('a'.charCodeAt(0) + el));
 const ALPHABET_UPPERCASE = ALPHABET_LOWERCASE.map(el => el.toUpperCase());
@@ -82,20 +83,61 @@ const generatePassword = () => {
 const passwordBunch = bunchSize => [...Array(bunchSize)].map(generatePassword);
 
 const main = async () => {
-    const passwords = passwordBunch(10e3);
-    const passwordsString = passwords.join('\n');
+    const PASSWORDS_NUMBER = 1e3;
+    const passwords = passwordBunch(PASSWORDS_NUMBER);
     // console.log("Generating password:");
     // console.log(passwordsString);
-    fs.writeFileSync('./passwordBunch.txt', passwordsString, {encoding: 'utf8'});
+    let passwordStream = fs.createWriteStream('./passwordBunch.txt', {flags:'a'});
+    for(password in passwords){
+        passwordStream.write(password + '\n')
+    }
+    passwordStream.end();
+    
+    const MD5_PATH = './hash/md5.csv';
+    const SHA512_PATH = './hash/sha512.csv';
+    const ARGON_PATH = './hash/argon2.csv';
+
 
     //Cipher into md5
-    fs.writeFileSync('./hash/md5.csv', passwords.map(a => crypto.createHash('md5').update(a).digest('hex')).join('\n') , {encoding: 'utf8'});
+    console.log("Started md5");
+    if(fs.existsSync(MD5_PATH)){
+        fs.unlinkSync(MD5_PATH);
+    }
+    let stream = fs.createWriteStream(MD5_PATH, {flags:'a'});
+    stream.write('');
+    for(password of passwords){
+        const hashed = crypto.createHash('md5').update(password).digest('hex');
+        stream.write(hashed + '\n')
+    }
+    stream.end();
+    console.log("Finished md5");
 
-    //Cipher into sha256
-    fs.writeFileSync('./hash/sha256.csv', passwords.map(a => crypto.createHash('sha256').update(a).digest('hex')).join('\n') , {encoding: 'utf8'});
+    //Cipher into sha512
+    console.log("Started sha512");
+    if(fs.existsSync(SHA512_PATH)){
+        fs.unlinkSync(SHA512_PATH);
+    }
+    stream = fs.createWriteStream(SHA512_PATH, {flags:'a'});
+    for(password of passwords){
+        const hashed = crypto.createHash('sha512').update(password).digest('hex');
+        stream.write(hashed + '\n')
+    }
+    stream.end();
+    console.log("Finished sha512");
 
-    //Cipher into Argon2i
-    fs.writeFileSync('./hash/argon2.csv', (await Promise.all(passwords.map(async a => await argon2.hash(a)))).join('\n') , {encoding: 'utf8'});
+    //Cipher into Argon2
+    console.log("Started Argon2");
+    if(fs.existsSync(ARGON_PATH)){
+        fs.unlinkSync(ARGON_PATH);
+    }
+    stream = fs.createWriteStream(ARGON_PATH, {flags:'a'});
+    stream.write('');
+    for(password of passwords){
+        const hashed = await argon2.hash(password);
+        stream.write(hashed + '\n')
+    }
+    stream.end();
+    console.log("Finished Argon2");
 }
 
 if(require.main === module){
